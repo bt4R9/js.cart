@@ -5,6 +5,15 @@
 * json2
 */
 ;(function(window, $, undefined) {
+
+	var isLocalStorageAvailable = function() {
+		try {
+			return 'localStorage' in window && window['localStorage'] !== null;
+		} catch(e) {
+			return false;
+		}
+	}
+
 	var Cart = function() {
 		this._key = '_cart';
 
@@ -136,29 +145,6 @@
 	
 	$.extend(Cart.prototype, {
 		_totalSum: 0,
-		__setState: function(state) {
-			try {
-				var stateString = JSON.stringify(state);
-				$.cookie(this._key, stateString, { expires: 30 });
-				this.__recount();
-				return true;
-			} catch(e) {
-				throw new Error(e);
-				return false;
-			}
-		},
-		__getState: function() {
-			try {
-				var state = JSON.parse($.cookie(this._key));
-				if (!state) {
-					state = {};
-				}
-				return state;
-			} catch(e) {
-				throw new Error(e);
-				return false;
-			}
-		},
 		__recount: function() {
 			var state = this.__getState();
 			if (state) {
@@ -179,6 +165,60 @@
 			return !isNaN(parseFloat(n)) && isFinite(n);
 		}
 	});
+	
+	if (isLocalStorageAvailable()) {
+		$.extend(Cart.prototype, {
+			__setState: function(state) {
+				try {
+					var stateString = JSON.stringify(state);
+					window.localStorage[this._key] = stateString;
+					return true;
+				} catch(e) {
+					throw new Error(e);
+					return false;
+				}
+			},
+			__getState: function() {
+				try {
+					if (!window.localStorage.hasOwnProperty(this._key)) {
+						this.__setState({});
+					}
+					var state = JSON.parse(window.localStorage[this._key]);
+					return state;
+				} catch(e) {
+					throw new Error(e);
+					return false;
+				}
+			}
+		});
+	} else {
+		// cookie fallback
+		$.extend(Cart.prototype, {
+			__setState: function(state) {
+				try {
+					var stateString = JSON.stringify(state);
+					$.cookie(this._key, stateString, { expires: 30 });
+					this.__recount();
+					return true;
+				} catch(e) {
+					throw new Error(e);
+					return false;
+				}
+			},
+			__getState: function() {
+				try {
+					var state = JSON.parse($.cookie(this._key));
+					if (!state) {
+						state = {};
+					}
+					return state;
+				} catch(e) {
+					throw new Error(e);
+					return false;
+				}
+			}
+		});
+	}
 	
 	window.cart = new Cart();
 	window.cart.__recount();
